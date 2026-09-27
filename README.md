@@ -1,0 +1,666 @@
+# 🔎 AI Research Agent
+
+> An autonomous, multi-agent AI research system that transforms a user's research question into a structured research plan, gathers web-based evidence, scrapes relevant sources, and generates a final research report.
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-API-orange?logo=google)
+![BeautifulSoup](https://img.shields.io/badge/Web%20Scraping-BeautifulSoup-green)
+![Status](https://img.shields.io/badge/Status-Active-success)
+
+---
+
+## 📌 Overview
+
+**AI Research Agent** is a Python-based autonomous research pipeline designed to automate the process of researching a topic on the web.
+
+Instead of manually searching multiple websites, reading pages, collecting information, and writing a report, the system divides the task into multiple specialized stages.
+
+The system takes a natural-language research question and performs:
+
+```text
+User Question
+      │
+      ▼
+┌─────────────────────┐
+│   Planning Agent    │
+│ Breaks question     │
+│ into research tasks │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│   Research Agent    │
+│ Google-grounded     │
+│ web research        │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│    Web Scraper      │
+│ Extracts useful     │
+│ webpage content     │
+└─────────┬───────────┘
+          │
+          ▼
+┌─────────────────────┐
+│  Summarizer Agent   │
+│ Synthesizes evidence│
+│ into a report       │
+└─────────┬───────────┘
+          │
+          ▼
+   Research Report
+   + Research Trace
+```
+
+The project uses **Google Gemini** for the AI agents and Gemini's Google Search grounding capability for web research.
+
+---
+
+# ✨ Features
+
+### 🤖 Multi-Agent Architecture
+
+The project separates responsibilities across specialized AI agents:
+
+* **Planning Agent** — converts a broad research question into focused research questions and search queries.
+* **Research Agent** — investigates the research questions using Google Search grounding.
+* **Summarization Agent** — combines the collected evidence into a structured research report.
+
+### 🌐 Web Research
+
+The Research Agent uses Gemini's Google Search tool to gather information from the web and extract source metadata.
+
+The research instructions prioritize:
+
+* Research papers
+* Universities
+* Government organizations
+* Official documentation
+* Established technical organizations
+
+The system also attempts to avoid relying heavily on:
+
+* Unsourced claims
+* Duplicate pages
+* Low-quality sources
+* Random blogs and SEO-focused websites
+
+### 🕷️ Web Scraping
+
+After research sources are identified, the project uses `requests` and `BeautifulSoup` to retrieve and clean webpage content.
+
+The scraper:
+
+* Downloads HTML pages
+* Removes unnecessary elements such as scripts, styles, navigation, headers and footers
+* Extracts readable text
+* Records webpage titles and URLs
+* Limits the amount of scraped content
+* Avoids scraping the same URL multiple times
+
+### 📝 Automatic Report Generation
+
+The final AI-generated report is structured into sections such as:
+
+1. Executive Summary
+2. Research Questions
+3. Key Findings
+4. Detailed Analysis
+5. Comparison / Synthesis
+6. Limitations
+7. Conclusion
+8. Sources
+
+### 📊 Research Trace
+
+The system also stores the research process as structured JSON.
+
+This makes it possible to inspect:
+
+* Original user question
+* Generated research plan
+* Research questions
+* Research answers
+* Sources
+* Scraped webpages
+
+---
+
+# 🏗️ Project Structure
+
+```text
+Coding-Contest-Techvurk/
+│
+├── Agents/
+│   ├── planning_agent.py
+│   ├── researching_agent.py
+│   └── summarizing_agent.py
+│
+├── Testings/
+│   ├── test_gemini.py
+│   ├── test2_gemini.py
+│   └── test_planner.py
+│
+├── Tools/
+│   └── web_scraper.py
+│
+├── main.py
+├── .gitignore
+└── README.md
+```
+
+---
+
+# 🧩 Architecture
+
+## 1. Planning Agent
+
+File:
+
+```text
+Agents/planning_agent.py
+```
+
+The Planning Agent receives the user's question and converts it into a structured research plan.
+
+It is instructed to identify:
+
+* The main topic
+* Independent research questions
+* Useful search queries
+* Evidence that should be collected
+* Expected output
+
+The agent returns structured JSON so that the next stage can consume the plan programmatically.
+
+Example conceptual output:
+
+```json
+{
+  "main_topic": "Artificial Intelligence",
+  "research_questions": [
+    "What are the major applications of AI?",
+    "What are the limitations of current AI systems?"
+  ],
+  "search_queries": [
+    "AI applications research",
+    "AI limitations research"
+  ],
+  "expected_output": "A structured technical research report"
+}
+```
+
+---
+
+# 2. Research Agent
+
+File:
+
+```text
+Agents/researching_agent.py
+```
+
+The Research Agent receives the questions generated by the Planning Agent.
+
+Instead of independently searching each question, related questions are processed together in a batched research pass.
+
+The agent uses Gemini's Google Search capability to obtain web-grounded information.
+
+The system also extracts source information from Gemini's grounding metadata.
+
+Each research result contains:
+
+```json
+{
+  "question": "...",
+  "answer": "...",
+  "sources": [
+    {
+      "title": "...",
+      "url": "..."
+    }
+  ]
+}
+```
+
+The Research Agent also includes retry handling for API rate-limit responses.
+
+---
+
+# 3. Web Scraper
+
+File:
+
+```text
+Tools/web_scraper.py
+```
+
+The Web Scraper takes URLs discovered during research and retrieves their webpage content.
+
+The scraper uses:
+
+```text
+requests
+BeautifulSoup
+```
+
+It removes unnecessary HTML elements such as:
+
+```text
+<script>
+<style>
+<noscript>
+<nav>
+<footer>
+<header>
+<aside>
+```
+
+The remaining page text is cleaned and passed to the summarization stage.
+
+The scraper also:
+
+* Prevents duplicate URLs
+* Checks that the response is HTML
+* Limits extracted content
+* Handles request failures
+* Limits the number of sources processed
+
+---
+
+# 4. Summarization Agent
+
+File:
+
+```text
+Agents/summarizing_agent.py
+```
+
+The Summarization Agent receives:
+
+* The original research question
+* Research results
+* Source URLs
+* Scraped webpage content
+
+It then synthesizes the evidence into a structured research report.
+
+The agent is instructed to:
+
+* Use only supplied research evidence
+* Avoid inventing facts
+* Avoid inventing citations
+* Identify uncertainty
+* Combine information from multiple sources
+* Remove duplicate information
+* Highlight disagreements between sources
+* Prefer technical and primary sources when available
+
+---
+
+# 🔄 Complete Workflow
+
+When the application starts, `main.py` asks the user for a research question.
+
+For example:
+
+```text
+Enter your Query:
+What are the current applications of generative AI in healthcare?
+```
+
+The system then performs the following pipeline:
+
+### Step 1 — Receive Query
+
+The user provides a natural-language research question.
+
+### Step 2 — Create Research Plan
+
+The Planning Agent analyzes the question and generates focused research questions.
+
+### Step 3 — Conduct Research
+
+The Research Agent investigates those questions using Gemini's Google Search grounding.
+
+### Step 4 — Collect Sources
+
+Source URLs discovered during research are collected and deduplicated.
+
+### Step 5 — Scrape Sources
+
+The Web Scraper downloads and cleans selected webpages.
+
+### Step 6 — Synthesize Evidence
+
+The Summarization Agent receives the research findings and scraped content.
+
+### Step 7 — Generate Report
+
+The system produces a final Markdown research report.
+
+### Step 8 — Save Research Trace
+
+The complete research process is stored as JSON for inspection and reproducibility.
+
+---
+
+# 📂 Output
+
+After a successful run, the system creates an `outputs` directory containing:
+
+```text
+outputs/
+│
+├── research_report.md
+└── research_trace.json
+```
+
+### `research_report.md`
+
+Contains the final human-readable research report.
+
+### `research_trace.json`
+
+Contains structured information about the research process, including the original query, generated plan, research results and scraped sources.
+
+---
+
+# ⚙️ Requirements
+
+The project requires Python and the following packages:
+
+```text
+google-genai
+python-dotenv
+requests
+beautifulsoup4
+```
+
+You can install the dependencies with:
+
+```bash
+pip install google-genai python-dotenv requests beautifulsoup4
+```
+
+---
+
+# 🔐 Environment Variables
+
+The project uses environment variables for API configuration.
+
+Create a local `.env` file:
+
+```env
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=your_model_name
+```
+
+The application loads the variables using `python-dotenv`.
+
+**Never commit your `.env` file to GitHub.**
+
+Your `.gitignore` should contain:
+
+```gitignore
+.env
+__pycache__/
+*.pyc
+```
+
+If an API key is accidentally exposed, revoke/rotate it immediately and replace it with a new key.
+
+---
+
+# ▶️ Running the Project
+
+Clone the repository:
+
+```bash
+git clone https://github.com/SudarshanRao1/Coding-Contest-Techvurk.git
+```
+
+Move into the project:
+
+```bash
+cd Coding-Contest-Techvurk
+```
+
+Install dependencies:
+
+```bash
+pip install google-genai python-dotenv requests beautifulsoup4
+```
+
+Create your `.env` file:
+
+```env
+GEMINI_API_KEY=your_api_key_here
+GEMINI_MODEL=your_model_name
+```
+
+Run the application:
+
+```bash
+python main.py
+```
+
+You will then be prompted to enter your research question.
+
+---
+
+# 💡 Example
+
+Input:
+
+```text
+What are the major challenges of deploying AI models in production?
+```
+
+The system can transform this into several research questions, investigate those questions, collect supporting sources, scrape selected webpages and generate a structured report.
+
+Conceptually:
+
+```text
+User Question
+      ↓
+Planning Agent
+      ↓
+Research Questions
+      ↓
+Gemini + Google Search
+      ↓
+Research Results + Sources
+      ↓
+Web Scraper
+      ↓
+Clean Web Content
+      ↓
+Summarization Agent
+      ↓
+Final Research Report
+```
+
+---
+
+# 🛠️ Technologies Used
+
+| Technology           | Purpose                          |
+| -------------------- | -------------------------------- |
+| Python               | Core application                 |
+| Google Gemini        | AI reasoning and generation      |
+| Gemini Google Search | Grounded web research            |
+| `google-genai`       | Gemini API integration           |
+| Requests             | HTTP requests                    |
+| BeautifulSoup        | HTML parsing and text extraction |
+| python-dotenv        | Environment variable management  |
+| JSON                 | Structured research data         |
+| Markdown             | Final research report            |
+
+---
+
+# 🎯 Design Goals
+
+This project was designed around several important ideas:
+
+### Separation of Responsibilities
+
+Each AI agent has a specific role rather than asking a single model call to perform the entire research workflow.
+
+### Evidence-Oriented Research
+
+The research stage is designed to collect supporting sources rather than relying solely on model-generated knowledge.
+
+### Structured Data Flow
+
+Agents communicate through structured JSON data wherever practical.
+
+### Reproducibility
+
+The system saves a research trace so that the intermediate research process can be inspected.
+
+### Modular Architecture
+
+Agents and tools are separated into different modules, making the project easier to extend.
+
+---
+
+# 🚀 Future Improvements
+
+Potential improvements include:
+
+* [ ] Add a dedicated source-quality scoring system
+* [ ] Add source deduplication based on content similarity
+* [ ] Add citation verification
+* [ ] Add parallel webpage scraping
+* [ ] Add asynchronous research execution
+* [ ] Add a command-line interface with configurable options
+* [ ] Add unit and integration tests
+* [ ] Add logging instead of print statements
+* [ ] Add persistent research history
+* [ ] Add a web interface
+* [ ] Add PDF report generation
+* [ ] Add configurable maximum research sources
+* [ ] Add automatic source-quality classification
+* [ ] Add error recovery for failed webpages
+* [ ] Add support for multiple research models
+* [ ] Add evaluation benchmarks for research quality
+
+---
+
+# 🧪 Testing
+
+The `Testings/` directory contains experiments and tests related to:
+
+* Gemini API integration
+* Planner functionality
+* Research functionality
+
+These scripts can be used while developing and debugging individual parts of the system.
+
+---
+
+# 🔒 Security
+
+API credentials are loaded from environment variables rather than being hard-coded into the application.
+
+Example:
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+API_KEY = os.getenv("GEMINI_API_KEY")
+```
+
+Do not place API keys directly inside Python source files.
+
+Do not commit:
+
+```text
+.env
+credentials
+private keys
+API keys
+tokens
+```
+
+---
+
+# 📈 What This Project Demonstrates
+
+This project demonstrates practical implementation of several AI engineering concepts:
+
+* Multi-agent system design
+* LLM orchestration
+* Prompt engineering
+* Structured JSON generation
+* Grounded AI research
+* Web scraping
+* Source collection
+* Evidence synthesis
+* Environment-based secret management
+* Modular Python architecture
+* Automated report generation
+
+---
+
+# 👨‍💻 Author
+
+**Sudarshan Rao**
+
+AI & Data Science Student
+
+GitHub:
+
+https://github.com/SudarshanRao1
+
+---
+
+# 📜 License
+
+This project is intended for educational and experimental purposes.
+
+If you plan to distribute or use the project commercially, add an appropriate open-source license such as MIT, Apache-2.0, or another license that matches your intended usage.
+
+---
+
+## ⭐ Project Vision
+
+The long-term goal of this project is to evolve from a simple AI research script into a more robust **autonomous research assistant** capable of planning investigations, gathering evidence, validating sources, synthesizing information and producing reliable research reports with minimal user intervention.
+
+```text
+             ┌──────────────────┐
+             │   User Question  │
+             └────────┬─────────┘
+                      │
+                      ▼
+             ┌──────────────────┐
+             │ Planning Agent   │
+             └────────┬─────────┘
+                      │
+                      ▼
+             ┌──────────────────┐
+             │ Research Agent   │
+             └────────┬─────────┘
+                      │
+                      ▼
+             ┌──────────────────┐
+             │   Web Scraper    │
+             └────────┬─────────┘
+                      │
+                      ▼
+             ┌──────────────────┐
+             │ Summarizer Agent │
+             └────────┬─────────┘
+                      │
+             ┌────────┴────────┐
+             ▼                 ▼
+      Research Report    Research Trace
+          (.md)              (.json)
+```
+
+**Built with Python + Google Gemini + Web Research**
